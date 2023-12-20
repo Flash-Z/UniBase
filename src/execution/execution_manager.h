@@ -29,6 +29,11 @@ class QlManager {
     void run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Context *context);
     void select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, std::vector<TabCol> sel_cols,
                         Context *context);
+    void insert_into(const std::string &tab_name, std::vector<Value> values, Context *context);
+    void delete_from(const std::string &tab_name, std::vector<Condition> conds, Context *context);
+    void QlManager::update_set(const std::string &tab_name, std::vector<SetClause> set_clauses, std::vector<Condition> conds, Context *context);
+
+    
 
     void run_dml(std::unique_ptr<AbstractExecutor> exec);
 };

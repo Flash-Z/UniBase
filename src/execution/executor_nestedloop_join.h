@@ -34,7 +34,20 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
     }
 
     void beginTuple() override {
-
+        left_->beginTuple();
+        if (left_->is_end()) {
+            return;
+        }
+        feed_right();
+        right_->beginTuple();
+        while (right_->is_end()) {
+            // 如果当前innerTable(右表或算子)扫描完了,就移动到outerTable(左表)下一个记录,然后把右表移动到第一个记录的位置
+            left_->nextTuple();
+            if (left_->is_end()) {
+                break;
+            }
+            feed_right();
+            right_->beginTuple();
     }
 
     void nextTuple() override {

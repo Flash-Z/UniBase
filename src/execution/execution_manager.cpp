@@ -176,7 +176,49 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     RecordPrinter::print_record_count(num_rec, context);
 }
 
-// 执行DML语句
+// 执行DML语句(这个根本没用啊？？)
 void QlManager::run_dml(std::unique_ptr<AbstractExecutor> exec){
     exec->Next();
+}
+
+void QlManager::insert_into(const std::string &tab_name, std::vector<Value> values, Context *context) {
+    auto executor_insert = new InsertExecutor(sm_manager_, tab_name, values, context);
+    executor_insert->Next(); //调用Next()函数
+}
+
+void QlManager::delete_from(const std::string &tab_name, std::vector<Condition> conds, Context *context) {
+    // Get all RID to delete
+    std::vector<Rid> rids;
+    // make scan executor
+    std::unique_ptr<AbstractExecutor> scan_;
+    scan_ = std::make_unique<SeqScanExecutor>(sm_manager_, tab_name, conds, context);
+    for (scan_->beginTuple(); !scan_->is_end(); scan_->nextTuple()) {
+        rids.push_back(scan_->rid());
+    }
+    auto executor_delete = new DeleteExecutor(sm_manager_, tab_name, conds, rids, context);
+    executor_delete->Next();
+}
+
+void QlManager::update_set(const std::string &tab_name, std::vector<SetClause> set_clauses,
+                           std::vector<Condition> conds, Context *context) {
+    TabMeta &tab = sm_manager_->db_.get_table(tab_name);
+    // Get raw values in set clause
+    for (auto &set_clause : set_clauses) {
+        auto lhs_col = tab.get_col(set_clause.lhs.col_name);
+        if (lhs_col->type != set_clause.rhs.type) {
+            throw IncompatibleTypeError(coltype2str(lhs_col->type), coltype2str(set_clause.rhs.type));
+        }
+        set_clause.rhs.init_raw(lhs_col->len);
+    }
+    // Get all RID to update
+    std::vector<Rid> rids;
+    // make sE
+    AbstractExecutor* sE;
+    sE = new SeqScanExecutor(sm_manager_, tab_name, conds, context);
+    // for store rid ---> rids
+    for( sE->beginTuple(); !sE->is_end(); sE->nextTuple() )
+        rids.push_back( sE->rid() );
+    // make uE & call next
+    auto uE = new UpdateExecutor(sm_manager_, tab_name, set_clauses, conds, rids, context);
+    uE->Next();
 }

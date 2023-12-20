@@ -29,13 +29,38 @@ class ProjectionExecutor : public AbstractExecutor {
         len_ = curr_offset;
     }
 
-    void beginTuple() override {}
+    void beginTuple() override {
+        prev_->beginTuple();
+    }
 
-    void nextTuple() override {}
+    void nextTuple() override {
+        prev_->nextTuple();
+    }
+
 
     std::unique_ptr<RmRecord> Next() override {
-        return nullptr;
+        //获取上一个算子（父算子）的列信息
+        auto &prev_cols = prev_->cols();
+        // 获取上一个算子（父算子）的下一个记录
+        auto prev_rec = prev_->Next();
+        // 获取投影算子需要投影的列信息
+        auto &proj_cols = cols_;
+        //创建一个用于存储投影结果的记录
+        auto proj_rec = std::make_unique<RmRecord>(len_);
+        //遍历投影的列
+        for (size_t proj_idx = 0; proj_idx < proj_cols.size(); proj_idx++) {\
+            //获取在上一个算子（父算子）中对应的列索引
+            size_t prev_idx = sel_idxs_[proj_idx];
+            //获取上一个算子（父算子）中对应列的元信息
+            auto &prev_col = prev_cols[prev_idx];
+            //获取当前投影算子中对应列的元信息
+            auto &proj_col = proj_cols[proj_idx];
+            // 利用memcpy生成proj_rec, 将上一个算子中对应列的值拷贝到当前投影记录中
+            memcpy( proj_rec->data+proj_col.offset, prev_rec->data+prev_col.offset, prev_col.len );
+        }
+        return proj_rec;
     }
+
 
     Rid &rid() override { return _abstract_rid; }
 };

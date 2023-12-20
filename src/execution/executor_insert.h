@@ -27,33 +27,36 @@ class InsertExecutor : public AbstractExecutor {
         context_ = context;
     };
 
-    std::unique_ptr<RmRecord> Next() override {
-        // Make record buffer
+    std::unique_ptr<RmRecord> Next() override { 
+        // 创建一个新的记录（rec），大小由文件头定义
         RmRecord rec(fh_->get_file_hdr().record_size);
+        // 遍历待插入的值，将其设置到记录中对应的列中
         for (size_t i = 0; i < values_.size(); i++) {
             auto &col = tab_.cols[i];
             auto &val = values_[i];
+            // 检查列类型是否匹配待插入值的类型
             if (col.type != val.type) {
-                throw IncompatibleTypeError(coltype2str(col.type), coltype2str(val.type));
+            throw IncompatibleTypeError(coltype2str(col.type), coltype2str(val.type));
             }
+            // 初始化值为原始数据格式
             val.init_raw(col.len);
+            // 将值的原始数据复制到记录中对应的列中
             memcpy(rec.data + col.offset, val.raw->data, col.len);
         }
-        // Insert into record file
+        // 插入到记录文件中，并获取记录标识符
         rid_ = fh_->insert_record(rec.data, context_);
-        
-        // Insert into index
-        for(size_t i = 0; i < tab_.indexes.size(); ++i) {
-            auto& index = tab_.indexes[i];
-            auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-            char* key = new char[index.col_tot_len];
-            int offset = 0;
-            for(size_t i = 0; i < index.col_num; ++i) {
-                memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
-                offset += index.cols[i].len;
+        // 如果某些列存在索引，将记录插入到这些索引中
+        for (size_t i = 0; i < tab_.cols.size(); i++) {
+            auto &col = tab_.cols[i];
+            // 检查列是否存在索引
+            if (col.index) { // 存在索引，执行更新操作
+                auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, i)).get();
+                ih->insert_entry(rec.data + col.offset, rid_, context_->txn_);
             }
-            ih->insert_entry(key, rid_, context_->txn_);
         }
+        // 修改写入集，跟踪插入操作
+        WriteRecord *wrec = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_);
+        context_->txn_->AppendWriteRecord(wrec);
         return nullptr;
     }
     Rid &rid() override { return rid_; }
