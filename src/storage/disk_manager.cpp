@@ -145,7 +145,7 @@ int DiskManager::open_file(const std::string &path) {
         fd2path_[fd] = path;
         return fd;
     }
-    else throw FileNotClosedError(path);
+    else return path2fd_[path];
 }
 
 /**

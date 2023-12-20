@@ -188,7 +188,36 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
  * @param {Context*} context
  */
 void SmManager::create_index(const std::string& tab_name, const std::vector<std::string>& col_names, Context* context) {
-    
+     // 目前暂不测试Multi-Index，以后会添加Multi-Index的题目
+    // 此处的参考代码只是一个临时Patch
+    TabMeta &tab = db_.get_table(tab_name);
+    std::vector<ColMeta> cols;
+    for (auto col_name : col_names) {
+        auto col = *tab.get_col(col_name);
+        cols.emplace_back(col);
+    }
+    // Create index file
+    ix_manager_->create_index(tab_name, cols);  // 这里调用了
+    // Open index file
+    auto ih = ix_manager_->open_index(tab_name, cols);
+    // Get record file handle
+    auto file_handle = fhs_.at(tab_name).get();
+    // Index all records into index
+    for (RmScan rm_scan(file_handle); !rm_scan.is_end(); rm_scan.next()) {
+        auto rec = file_handle->get_record(rm_scan.rid(), context);  // rid是record的存储位置，作为value插入到索引里
+        const char *key = rec->data + cols.at(0).offset;
+        // record data里以各个属性的offset进行分隔，属性的长度为col len，record里面每个属性的数据作为key插入索引里
+        ih->insert_entry(key, rm_scan.rid(), context->txn_);
+    }
+    // Store index handle
+    auto index_name = ix_manager_->get_index_name(tab_name, cols);
+    assert(ihs_.count(index_name) == 0);
+    // ihs_[index_name] = std::move(ih);
+    ihs_.emplace(index_name, std::move(ih));
+    // Mark column index as created
+    for (auto col : cols) {
+        col.index = true;
+    }
 }
 
 /**
