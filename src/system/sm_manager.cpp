@@ -83,7 +83,7 @@ void SmManager::open_db(const std::string& db_name) {
     }
     std::ifstream ifs(DB_META_NAME);
     if (!ifs.is_open()) { // 检查文件是否成功打开
-        throw FileNotOpenError();
+        throw FileNotFoundError(DB_META_NAME);
     }
     ifs >> db_; //用重载过的>>载入数据库元数据
     ifs.close(); // 关闭文件
