@@ -10,18 +10,22 @@ static const bool binary_search = false;
 inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
     switch (type) {
         case TYPE_INT: {
+            std::cout<<"types:"<<type<<'\n';
             int ia = *(int *)a;
             int ib = *(int *)b;
             return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
         }
         case TYPE_FLOAT: {
+            std::cout<<"types:"<<type<<'\n';
             float fa = *(float *)a;
             float fb = *(float *)b;
             return (fa < fb) ? -1 : ((fa > fb) ? 1 : 0);
         }
         case TYPE_STRING:
+            std::cout<<"types:"<<type<<'\n';
             return memcmp(a, b, col_len);
         default:
+            std::cout<<"types:"<<type<<'\n';
             throw InternalError("Unexpected data type");
     }
 }

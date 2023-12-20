@@ -74,6 +74,7 @@ Page* BufferPoolManager::fetch_page(PageId page_id) {
     // 5.     返回目标页
 
     std::scoped_lock lock{latch_};
+    
     // 检查页面是否已经在内存中
     auto it = page_table_.find(page_id);
     if (it != page_table_.end()) {
@@ -125,12 +126,9 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
     // 2.2.1 若自减后等于0，则调用replacer_的Unpin
     // 3 根据参数is_dirty，更改P的is_dirty_
 
-    //unpin应该没问题，不该erase page_table里面的东西，只是把pin count减一
-
-    // 检查页面是否在内存中
-
     std::scoped_lock lock{latch_};
 
+    // 检查页面是否在内存中
     auto it = page_table_.find(page_id);
     if (it == page_table_.end()) {
         return false;  // 页面不在内存中
@@ -204,11 +202,10 @@ Page* BufferPoolManager::new_page(PageId* page_id) {
     // 3.   将frame的数据写回磁盘
     // 4.   固定frame，更新pin_count_
     // 5.   返回获得的page
-   
-   // 1. 获取一个可用的帧，如果不可用则返回nullptr
 
     std::scoped_lock lock{latch_};
 
+    // 1. 获取一个可用的帧，如果不可用则返回nullptr
     frame_id_t frame_id;
     if (!find_victim_page(&frame_id)) {
         return nullptr;
@@ -243,11 +240,10 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     // 1.   在page_table_中查找目标页，若不存在返回true
     // 2.   若目标页的pin_count不为0，则返回false
     // 3.   将目标页数据写回磁盘，从页表中删除目标页，重置其元数据，将其加入free_list_，返回true
-    
-    // 1. 在page_table_中查找目标页，若不存在返回true
 
     std::scoped_lock lock{latch_};
 
+    // 1. 在page_table_中查找目标页，若不存在返回true
     auto it = page_table_.find(page_id);
     if (it == page_table_.end()) {
         return true;
@@ -281,12 +277,5 @@ bool BufferPoolManager::delete_page(PageId page_id) {
 void BufferPoolManager::flush_all_pages(int fd) {
     for (auto& pair : page_table_) {
         flush_page(pair.first);
-        // frame_id_t frame_id = pair.second;
-        // Page* page = &pages_[frame_id];
-        // if (page->get_page_id().fd == fd && page->is_dirty()) {
-        //     disk_manager_->write_page(page->get_page_id().fd, page->get_page_id().page_no, page->get_data(), PAGE_SIZE);
-        //     page->is_dirty_ = false;
-        // }
-        // flush_page(page->get_page_id());
     }
 }
